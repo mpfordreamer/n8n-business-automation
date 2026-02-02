@@ -6,7 +6,7 @@
 
 A comprehensive collection of **n8n workflows** designed to automate critical business processes, community management, and customer engagement. This repository serves as a centralized hub for automation scripts covering **Telegram**, **Discord**, and **WhatsApp** (Property Management).
 
-## � Table of Contents
+## Table of Contents
 - [About the Project](#about-the-project)
 - [📂 Repository Structure](#-repository-structure)
 - [⚡ Workflow Details](#-workflow-details)
