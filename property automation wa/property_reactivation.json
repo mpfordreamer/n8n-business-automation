@@ -154,7 +154,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=AIzaSyAEBjrxm5oAVR8e9iWOFH78qScv1qDFJvU",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=REDACTED_GOOGLE_KEY",
         "sendBody": true,
         "bodyParameters": {
           "parameters": [
