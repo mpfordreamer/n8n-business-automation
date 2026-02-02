@@ -1,0 +1,253 @@
+{
+  "name": "Flow B - Eksekusi VIP (Status Active)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "13NUd5vCYHaQulnI89Mfk-3aU7e80b4qWPK8WvFMcQOw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "DB-Membership",
+          "mode": "name"
+        },
+        "event": "rowUpdate",
+        "options": {}
+      },
+      "id": "trigger-status",
+      "name": "Sheet Trigger - Status Updated",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-active",
+              "leftValue": "={{ $json.Status }}",
+              "rightValue": "Active",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "check-role",
+              "leftValue": "={{ $json.RoleAssigned }}",
+              "rightValue": "Membership",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-active",
+      "name": "IF Status Active",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "member",
+        "operation": "roleAdd",
+        "guildId": {
+          "__rl": true,
+          "value": "1350847865316184135",
+          "mode": "id"
+        },
+        "userId": {
+          "__rl": true,
+          "value": "={{ $json.DiscordID }}",
+          "mode": "id"
+        },
+        "role": [
+          "1458011867996885137"
+        ]
+      },
+      "id": "add-role",
+      "name": "Add VIP Role Discord",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        680,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "value": "13NUd5vCYHaQulnI89Mfk-3aU7e80b4qWPK8WvFMcQOw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "DB-Membership",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Email": "={{ $('IF Status Active').item.json.Email }}",
+            "RoleAssigned": "Membership"
+          },
+          "matchingColumns": [
+            "Email"
+          ]
+        },
+        "options": {}
+      },
+      "id": "update-role-status",
+      "name": "Update RoleAssigned",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        900,
+        220
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1350847865316184135",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1462812894780588063",
+          "mode": "id"
+        },
+        "content": "\ud83c\udf89 **MEMBER BARU AKTIF!**\n\n<@{{ $('IF Status Active').item.json.DiscordID }}> (**{{ $('IF Status Active').item.json.Nama }}**)\n\ud83d\udce7 {{ $('IF Status Active').item.json.Email }}\n\ud83d\udc8e {{ $('IF Status Active').item.json.OpsiMember }}\n\ud83d\udcc5 Join: {{ $('IF Status Active').item.json.JoinDate }}\n\ud83d\udcc5 Expire: {{ $('IF Status Active').item.json.ExpiryDate }}\n\n\u2705 VIP Role sudah ditambahkan!",
+        "options": {}
+      },
+      "id": "notify-admin",
+      "name": "Notify Admin - Role Added",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1350847865316184135",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1463369871134818406",
+          "mode": "id"
+        },
+        "content": "\ud83c\udf89 **SELAMAT BERGABUNG!**\n\nHalo <@{{ $('IF Status Active').item.json.DiscordID }}> (**{{ $('IF Status Active').item.json.Nama }}**)!\n\nPembayaran kamu sudah **DIVERIFIKASI** \u2705\n\n\ud83d\udc8e Paket: {{ $('IF Status Active').item.json.OpsiMember }}\n\ud83d\udcc5 Join: {{ $('IF Status Active').item.json.JoinDate }}\n\ud83d\udcc5 Expire: {{ $('IF Status Active').item.json.ExpiryDate }}\n\nKamu sekarang punya akses ke semua channel Membership!\nSelamat belajar dan semoga sukses! \ud83d\ude80",
+        "options": {}
+      },
+      "id": "notify-user",
+      "name": "Notify User - Welcome",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        220
+      ]
+    }
+  ],
+  "connections": {
+    "Sheet Trigger - Status Updated": {
+      "main": [
+        [
+          {
+            "node": "IF Status Active",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Status Active": {
+      "main": [
+        [
+          {
+            "node": "Add VIP Role Discord",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Add VIP Role Discord": {
+      "main": [
+        [
+          {
+            "node": "Update RoleAssigned",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update RoleAssigned": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin - Role Added",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Admin - Role Added": {
+      "main": [
+        [
+          {
+            "node": "Notify User - Welcome",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "15b5fc14a2360bded91197fef75071d97824ef5a858d598edd0ee51cb3ebddc0"
+  }
+}

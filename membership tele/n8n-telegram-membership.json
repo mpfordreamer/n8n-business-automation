@@ -1,0 +1,568 @@
+{
+  "name": "SS Trade Membership Bot",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hour": 8
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": {
+          "__rl": true,
+          "value": "1DhIiFM5MDGnxjf1tj4CPpbbp-fLS_cqPwk-r-1ZVT80",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "DB_Membership",
+          "mode": "name"
+        }
+      },
+      "id": "read-sheets",
+      "name": "Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Function to normalize date to YYYY-MM-DD format\nconst normalizeDate = (dateStr) => {\n  if (!dateStr) return null;\n  const str = String(dateStr);\n  \n  // If already in YYYY-MM-DD format\n  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(str)) {\n    return str;\n  }\n  \n  // If in M/D/YYYY or MM/DD/YYYY format (Google Sheets default)\n  if (str.includes('/')) {\n    const parts = str.split('/');\n    const month = parts[0].padStart(2, '0');\n    const day = parts[1].padStart(2, '0');\n    const year = parts[2];\n    return `${year}-${month}-${day}`;\n  }\n  \n  return str;\n};\n\nconst today = new Date();\nconst tomorrow = new Date(today);\ntomorrow.setDate(today.getDate() + 1);\n\nconst formatDate = (date) => date.toISOString().split('T')[0];\nconst todayStr = formatDate(today);\nconst tomorrowStr = formatDate(tomorrow);\n\nreturn items.map(item => {\n  const rawExpiry = item.json.ExpiryDate;\n  const expiryDate = normalizeDate(rawExpiry);\n  let action = 'IGNORE';\n  \n  if (expiryDate === todayStr) {\n    action = 'ALERT_TODAY';\n  } else if (expiryDate === tomorrowStr) {\n    action = 'ALERT_TOMORROW';\n  }\n\n  return {\n    json: {\n      ...item.json,\n      action_type: action,\n      debug_expiry: expiryDate,\n      debug_today: todayStr,\n      debug_tomorrow: tomorrowStr\n    }\n  };\n});"
+      },
+      "id": "logic-code",
+      "name": "Code",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-today",
+              "leftValue": "={{ $json.action_type }}",
+              "rightValue": "ALERT_TODAY",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-today",
+      "name": "IF Expire Today",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-tomorrow",
+              "leftValue": "={{ $json.action_type }}",
+              "rightValue": "ALERT_TOMORROW",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-tomorrow",
+      "name": "IF Expire Tomorrow",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.UserID }}",
+        "text": "=`\ud83d\udea8 PERINGATAN: AKSES VIP HABIS HARI INI\n\nHalo ${$json.Nama},\n\nMasa aktif akses Crypto kamu BERAKHIR HARI INI (${$json.ExpiryDate}).\n\nAkses akan dicabut besok pagi jika belum diperpanjang.\n\n\ud83d\udd25 PROMO: VIP LIFETIME Rp 150.000 (Sekali bayar selamanya)\n\nTransfer ke:\n\ud83d\udcb3 DANA: 082370685422\n\ud83d\udcb3 GOPAY: 082370685422\n(a.n SS TRADE / Syalom)\n\n\ud83d\udcdd Setelah transfer, isi form ini:\nhttps://forms.gle/hZdW99FYze5mtKMy5`"
+      },
+      "id": "msg-today",
+      "name": "Send Ultimatum",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1400,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.UserID }}",
+        "text": "=`\ud83d\udc4b Halo ${$json.Nama}!\n\nReminder: membership kamu tinggal 1 hari lagi (Habis besok: ${$json.ExpiryDate}).\n\n\ud83d\udc8e VIP Fee: 150K (LIFETIME)\nSekali bayar, cuan selamanya.\n\nPayment: DANA/GOPAY 082370685422\n\n\ud83d\udcdd Setelah transfer, isi form ini:\nhttps://forms.gle/hZdW99FYze5mtKMy5\n\nGas upgrade sekarang! \ud83d\ude80`"
+      },
+      "id": "msg-tomorrow",
+      "name": "Send Reminder",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1400,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8485398702",
+        "text": "\ud83d\udc6e LAPORAN BOT\n\nUser ini expire HARI INI:\n\ud83d\udc64 Nama: {{ $json.Nama }}\n\ud83c\udd94 ID: {{ $json.UserID }}\n\ud83d\udcc5 Exp: {{ $json.ExpiryDate }}\n\nBot sudah kirim tagihan."
+      },
+      "id": "report-admin",
+      "name": "Report to Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1620,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "1DhIiFM5MDGnxjf1tj4CPpbbp-fLS_cqPwk-r-1ZVT80",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Registrasi",
+          "mode": "name"
+        },
+        "event": "newRow"
+      },
+      "id": "form-trigger",
+      "name": "Google Form Response",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        460,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract data from Google Form and prepare for Admin Review\nconst formData = items[0].json;\n\n// Get today's date for JoinDate\nconst today = new Date();\nconst joinDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;\n\n// Calculate ExpiryDate based on Opsi Member\nconst opsiMember = formData['Opsi Member'] || '';\nlet expiryDate;\n\nif (opsiMember.toLowerCase().includes('lifetime') || opsiMember.toLowerCase().includes('selamanya')) {\n  expiryDate = '12/31/2099'; // Lifetime membership\n} else {\n  // Default: 30 days trial/monthly\n  const expiry = new Date(today);\n  expiry.setDate(today.getDate() + 30);\n  expiryDate = `${expiry.getMonth() + 1}/${expiry.getDate()}/${expiry.getFullYear()}`;\n}\n\nreturn [{\n  json: {\n    UserID: formData['ID Telegram'],\n    Nama: formData['Nama Lengkap'],\n    Username: formData['Username Telegram'],\n    JoinDate: joinDate,\n    ExpiryDate: expiryDate,\n    Status: 'Pending',\n    OpsiMember: opsiMember,\n    BuktiTransfer: formData['Upload Bukti Transfer']\n  }\n}];"
+      },
+      "id": "prepare-data",
+      "name": "Prepare Member Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8485398702",
+        "text": "\ud83c\udd95 PENDAFTARAN BARU!\n\n\ud83d\udc64 Nama: {{ $json.Nama }}\n\ud83d\udcf1 Username: {{ $json.Username }}\n\ud83c\udd94 ID Telegram: {{ $json.UserID }}\n\ud83d\udc8e Opsi: {{ $json.OpsiMember }}\n\ud83d\udcc5 Join: {{ $json.JoinDate }}\n\ud83d\udcc5 Expire: {{ $json.ExpiryDate }}\n\n\ud83e\uddfe Bukti Transfer:\n{{ $json.BuktiTransfer }}\n\n\u2b07\ufe0f Klik tombol di bawah untuk approve/reject:",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "\u2705 APPROVE",
+                    "additionalFields": {
+                      "callbackData": "approve_{{ $json.UserID }}_{{ $json.Nama }}_{{ $json.JoinDate }}_{{ $json.ExpiryDate }}"
+                    }
+                  },
+                  {
+                    "text": "\u274c REJECT",
+                    "additionalFields": {
+                      "callbackData": "reject_{{ $json.UserID }}_{{ $json.Nama }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "ask-admin-approval",
+      "name": "Ask Admin Approval",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        900,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "updates": [
+          "callback_query"
+        ]
+      },
+      "id": "telegram-callback-trigger",
+      "name": "Telegram Callback Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        460,
+        900
+      ],
+      "webhookId": "membership-callback"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse callback data\nconst callbackData = items[0].json.callback_query.data;\nconst parts = callbackData.split('_');\nconst action = parts[0]; // 'approve' or 'reject'\nconst userID = parts[1];\nconst nama = parts[2];\nconst joinDate = parts[3] || '';\nconst expiryDate = parts[4] || '';\n\nreturn [{\n  json: {\n    action: action,\n    UserID: userID,\n    Nama: nama,\n    JoinDate: joinDate,\n    ExpiryDate: expiryDate,\n    Status: action === 'approve' ? 'Active' : 'Rejected',\n    callbackQueryId: items[0].json.callback_query.id\n  }\n}];"
+      },
+      "id": "parse-callback",
+      "name": "Parse Callback Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-approve",
+              "leftValue": "={{ $json.action }}",
+              "rightValue": "approve",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-approved",
+      "name": "IF Approved",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        900
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1DhIiFM5MDGnxjf1tj4CPpbbp-fLS_cqPwk-r-1ZVT80",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "DB_Membership",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "UserID": "={{ $json.UserID }}",
+            "Nama": "={{ $json.Nama }}",
+            "JoinDate": "={{ $json.JoinDate }}",
+            "ExpiryDate": "={{ $json.ExpiryDate }}",
+            "Status": "={{ $json.Status }}"
+          }
+        },
+        "options": {}
+      },
+      "id": "add-member",
+      "name": "Add to Database",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1120,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.UserID }}",
+        "text": "\ud83c\udf89 SELAMAT BERGABUNG DI SS TRADE VIP!\n\nHalo {{ $json.Nama }},\n\nPembayaran kamu sudah DIVERIFIKASI oleh Admin.\nAkun VIP kamu sekarang AKTIF! \u2705\n\n\ud83d\udcc5 Join: {{ $json.JoinDate }}\n\ud83d\udcc5 Expire: {{ $json.ExpiryDate }}\n\nKamu sekarang punya akses ke:\n\u2705 Channel Sinyal Trading\n\u2705 Info Crypto Eksklusif\n\u2705 Grup Diskusi VIP\n\nSelamat trading dan semoga cuan! \ud83d\ude80\ud83d\udcb0"
+      },
+      "id": "welcome-msg",
+      "name": "Send Welcome Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1400,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8485398702",
+        "text": "\u2705 Member {{ $json.Nama }} ({{ $json.UserID }}) sudah di-APPROVE dan ditambahkan ke database."
+      },
+      "id": "notify-admin-approved",
+      "name": "Confirm to Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1620,
+        800
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.UserID }}",
+        "text": "\u274c Maaf {{ $json.Nama }},\n\nPendaftaran kamu TIDAK DISETUJUI.\n\nKemungkinan penyebab:\n- Bukti transfer tidak valid\n- Nominal tidak sesuai\n- Sudah digunakan sebelumnya\n\nSilakan hubungi Admin untuk klarifikasi:\n\u260e\ufe0f 082370685422"
+      },
+      "id": "reject-msg",
+      "name": "Send Rejection Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1120,
+        1000
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "8485398702",
+        "text": "\u274c Member {{ $json.Nama }} ({{ $json.UserID }}) DITOLAK."
+      },
+      "id": "notify-admin-rejected",
+      "name": "Confirm Rejection to Admin",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1400,
+        1000
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "IF Expire Today",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "IF Expire Tomorrow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Expire Today": {
+      "main": [
+        [
+          {
+            "node": "Send Ultimatum",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "IF Expire Tomorrow": {
+      "main": [
+        [
+          {
+            "node": "Send Reminder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Send Ultimatum": {
+      "main": [
+        [
+          {
+            "node": "Report to Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Form Response": {
+      "main": [
+        [
+          {
+            "node": "Prepare Member Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Member Data": {
+      "main": [
+        [
+          {
+            "node": "Ask Admin Approval",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Callback Trigger": {
+      "main": [
+        [
+          {
+            "node": "Parse Callback Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Callback Data": {
+      "main": [
+        [
+          {
+            "node": "IF Approved",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Approved": {
+      "main": [
+        [
+          {
+            "node": "Add to Database",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Send Rejection Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add to Database": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Message": {
+      "main": [
+        [
+          {
+            "node": "Confirm to Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Rejection Message": {
+      "main": [
+        [
+          {
+            "node": "Confirm Rejection to Admin",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

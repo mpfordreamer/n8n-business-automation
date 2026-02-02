@@ -1,0 +1,316 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 24
+            }
+          ]
+        }
+      },
+      "id": "6b2c5bb4-c0d3-461e-b463-be2c2a2158bf",
+      "name": "Daily Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        1536,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "17g-nvEoPIPYJtE26MhXKCgTE0h-uhz2KYzhpDhHhE0U",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Leads Database",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "3cc414ea-e9e2-4e76-84ea-606deb088d71",
+      "name": "Get Pending Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        1760,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.Status }}",
+              "value2": "On"
+            }
+          ]
+        }
+      },
+      "id": "filter-active",
+      "name": "Limit to Status=On",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        608
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "value": "17g-nvEoPIPYJtE26MhXKCgTE0h-uhz2KYzhpDhHhE0U",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Inventory Database",
+          "mode": "name"
+        },
+        "options": {}
+      },
+      "id": "7bd405e3-2af4-4cef-984e-32329bb2ab9f",
+      "name": "Get Inventory",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.1,
+      "position": [
+        1760,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "keys": {
+          "key": [
+            {
+              "currentKey": "Name",
+              "newKey": "Property_Name"
+            }
+          ]
+        }
+      },
+      "id": "rename-inventory-cols",
+      "name": "Rename Inventory Cols",
+      "type": "n8n-nodes-base.renameKeys",
+      "typeVersion": 1,
+      "position": [
+        1900,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.Promo_Status }}",
+              "operation": "notEqual",
+              "value2": "Pending"
+            }
+          ]
+        }
+      },
+      "id": "filter-promo",
+      "name": "Check Promo Status",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        2040,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "Property_ID1",
+              "field2": "Property_ID"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "35e546fd-f0a0-411d-aa7d-2af803918295",
+      "name": "Match Lead to Property",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        2260,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=AIzaSyAEBjrxm5oAVR8e9iWOFH78qScv1qDFJvU",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "contents",
+              "value": "={{ [ { \"parts\": [ { \"text\": \"You are a helpful property sales assistant for 'Mitra Bali Timur Property'.\\n\\nContext:\\n- Customer Name: \" + $json[\"Name\"] + \"\\n- Customer Gender: \" + $json[\"Gender\"] + \"\\n- Customer Type: \" + $json[\"Customer_Type\"] + \"\\n- Interested In: \" + $json[\"Property_Name\"] + \" (\" + $json[\"Location\"] + \")\\n- Property Status: \" + $json[\"Condition\"] + \"\\n- Current PROMO Price: \" + $json[\"Price\"] + \"\\n- Key Advantage: \" + $json[\"Advantage\"] + \"\\n\\nTask:\\nWrite a short, friendly, and human-like WhatsApp message.\\n\\nStyle Guidelines (Crucial):\\n- Keep it SHORT and concise (max 2 sentences for the main offer).\\n- Use clear PARAGRAPH BREAKS (empty line) between Greeting, Content, and Closing.\\n- Tone MUST be FORMAL yet warm.\\n\\nContent Strategy:\\n1. GREETING:\\n   - New: 'Om Swastyastu, Kami dari Mitra Bali Timur Property...'\\n   - Return: 'Om Swastyastu Pak/Bu [Name], apa kabar? Semoga sehat selalu.'\\n   - (Use 'Bapak/Bli' or 'Ibu/Mbok' logic appropriately).\\n\\n2. THE DEAL (Price Logic):\\n   - The price listed (\" + $json[\"Price\"] + \") is the **PROMO PRICE**.\\n   - The **ORIGINAL PRICE** was 20 Million Rupiah HIGHER.\\n   - Action: Mention the current Promo Price explicitly.\\n   - Example phrasing: 'Kami ada info menarik, unit ini sedang PROMO POTONGAN 20 JUTA. Dari harga normal, sekarang sisa [Price] saja!'\\n\\n3. CLOSING:\\n   - Simple survey invite.\\n   - MUST END with this exact emoji: \ud83d\ude00\\n\\nConstraints:\\n- No Markdown.\\n- No Hashtags.\" } ] } ] }}"
+            }
+          ]
+        },
+        "options": {},
+        "retryOnFail": true,
+        "maxTries": 5,
+        "waitBetweenTries": 5000
+      },
+      "id": "de96f172-0744-42e9-b1fb-f616c6f9e80d",
+      "name": "AI Message Generator Gemini",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2480,
+        720
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://waha:3000/api/sendText",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chatId",
+              "value": "={{ $('Match Lead to Property').item.json.Phone.toString() }}@c.us"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.candidates[0].content.parts[0].text }}"
+            },
+            {
+              "name": "session",
+              "value": "default"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "19861871-c6b1-429f-9def-df6268580619",
+      "name": "Send WhatsApp",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2700,
+        720
+      ]
+    }
+  ],
+  "connections": {
+    "Daily Schedule": {
+      "main": [
+        [
+          {
+            "node": "Get Pending Leads",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Inventory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending Leads": {
+      "main": [
+        [
+          {
+            "node": "Limit to Status=On",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit to Status=On": {
+      "main": [
+        [
+          {
+            "node": "Match Lead to Property",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Inventory": {
+      "main": [
+        [
+          {
+            "node": "Rename Inventory Cols",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rename Inventory Cols": {
+      "main": [
+        [
+          {
+            "node": "Check Promo Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Promo Status": {
+      "main": [
+        [
+          {
+            "node": "Match Lead to Property",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Match Lead to Property": {
+      "main": [
+        [
+          {
+            "node": "AI Message Generator Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Message Generator Gemini": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "15b5fc14a2360bded91197fef75071d97824ef5a858d598edd0ee51cb3ebddc0"
+  }
+}

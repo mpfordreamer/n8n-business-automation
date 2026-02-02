@@ -1,0 +1,218 @@
+{
+  "name": "Flow A - Laporan Masuk (Registration)",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "documentId": {
+          "__rl": true,
+          "value": "13NUd5vCYHaQulnI89Mfk-3aU7e80b4qWPK8WvFMcQOw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Form Responses 1",
+          "mode": "name"
+        },
+        "event": "newRow",
+        "options": {}
+      },
+      "id": "trigger-form",
+      "name": "Google Form Trigger",
+      "type": "n8n-nodes-base.googleSheetsTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare registration data\nconst formData = items[0].json;\n\nconst today = new Date();\nconst joinDate = `${today.getMonth() + 1}/${today.getDate()}/${today.getFullYear()}`;\nconst expiryDate = '12/31/2099';\n\n// Get Discord Username\nlet discordUsername = formData['Username Discord  '] || formData['Username Discord'] || '';\ndiscordUsername = discordUsername.trim().replace(/^@/, '').split('#')[0];\n\n// Get Discord ID\nlet discordId = formData['Discord ID'] || formData['Discord ID '] || formData['DiscordID'] || '';\ndiscordId = String(discordId).trim();\n\n// Validate Discord ID (17-19 digits)\nconst isValidId = /^\\d{17,19}$/.test(discordId);\n\nreturn [{\n  json: {\n    Timestamp: formData['Timestamp'],\n    Email: formData['Email'],\n    Nama: formData['Nama Lengkap '] || formData['Nama Lengkap'],\n    NoHP: formData['Nomor WhatsApp '] || formData['Nomor WhatsApp'],\n    DiscordUsername: discordUsername,\n    DiscordID: discordId,\n    BuktiTransfer: formData['Upload Bukti Transfer  '] || formData['Upload Bukti Transfer'],\n    OpsiMember: formData['Pilihan Paket Member  '] || formData['Pilihan Paket Member'] || 'Lifetime',\n    JoinDate: joinDate,\n    ExpiryDate: expiryDate,\n    Status: 'Pending',\n    RoleAssigned: '',\n    ValidDiscordID: isValidId ? 'Yes' : 'No'\n  }\n}];"
+      },
+      "id": "prepare-data",
+      "name": "Prepare Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "13NUd5vCYHaQulnI89Mfk-3aU7e80b4qWPK8WvFMcQOw",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "DB-Membership",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {}
+      },
+      "id": "save-to-sheet",
+      "name": "Simpan ke Sheet",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-valid-id",
+              "leftValue": "={{ $json.ValidDiscordID }}",
+              "rightValue": "Yes",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "if-valid-id",
+      "name": "IF Valid Discord ID",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1350847865316184135",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1462812894780588063",
+          "mode": "id"
+        },
+        "content": "\ud83d\udce5 **PENDAFTAR BARU - CEK MUTASI!**\n\n\ud83d\udc64 **{{ $json.Nama }}**\n\ud83d\udce7 {{ $json.Email }}\n\ud83d\udcf1 {{ $json.NoHP }}\n\ud83c\udfae Discord: {{ $json.DiscordUsername }}\n\ud83c\udd94 Discord ID: `{{ $json.DiscordID }}` \u2705 VALID\n\ud83d\udc8e Paket: {{ $json.OpsiMember }}\n\n\ud83d\udcce **BUKTI TRANSFER:**\n{{ $json.BuktiTransfer }}\n\n**LANGKAH SELANJUTNYA:**\n1. \u2705 Cek mutasi rekening\n2. \u2705 Jika valid, ubah Status \u2192 **PAID** di sheet\n3. \ud83e\udd16 Bot akan otomatis assign role VIP!\n\n\ud83d\udd17 https://docs.google.com/spreadsheets/d/13NUd5vCYHaQulnI89Mfk-3aU7e80b4qWPK8WvFMcQOw",
+        "options": {}
+      },
+      "id": "notify-valid",
+      "name": "Notify Admin - ID Valid",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1350847865316184135",
+          "mode": "id"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1462812894780588063",
+          "mode": "id"
+        },
+        "content": "\u26a0\ufe0f **PENDAFTAR BARU - DISCORD ID TIDAK VALID!**\n\n\ud83d\udc64 **{{ $json.Nama }}**\n\ud83d\udce7 {{ $json.Email }}\n\ud83d\udcf1 {{ $json.NoHP }}\n\ud83c\udfae Discord: {{ $json.DiscordUsername }}\n\ud83c\udd94 Discord ID: `{{ $json.DiscordID }}` \u274c INVALID\n\ud83d\udc8e Paket: {{ $json.OpsiMember }}\n\n\ud83d\udcce **BUKTI TRANSFER:**\n{{ $json.BuktiTransfer }}\n\n**PERLU ACTION:**\n1. \u26a0\ufe0f Hubungi user untuk minta Discord ID yang benar\n2. Update Discord ID di sheet\n3. Setelah itu, cek mutasi dan ubah Status \u2192 PAID\n\n\ud83d\udd17 https://docs.google.com/spreadsheets/d/13NUd5vCYHaQulnI89Mfk-3aU7e80b4qWPK8WvFMcQOw",
+        "options": {}
+      },
+      "id": "notify-invalid",
+      "name": "Notify Admin - ID Invalid",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        420
+      ]
+    }
+  ],
+  "connections": {
+    "Google Form Trigger": {
+      "main": [
+        [
+          {
+            "node": "Prepare Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Data": {
+      "main": [
+        [
+          {
+            "node": "Simpan ke Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simpan ke Sheet": {
+      "main": [
+        [
+          {
+            "node": "IF Valid Discord ID",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IF Valid Discord ID": {
+      "main": [
+        [
+          {
+            "node": "Notify Admin - ID Valid",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notify Admin - ID Invalid",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "15b5fc14a2360bded91197fef75071d97824ef5a858d598edd0ee51cb3ebddc0"
+  }
+}
