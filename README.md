@@ -57,7 +57,7 @@ Re-engage cold leads in the real estate sector using WhatsApp automation.
 - **Personalized Outreach:** Sends personalized WhatsApp messages (via WAHA or similar API) to inquire about interest.
 - **Status Updates:** automatically updates the lead status based on replies (e.g., "Interested", "Stop", "Follow-up").
 
-## �️ Prerequisites
+## 📜 Prerequisites
 Before importing these workflows, ensure you have:
 - **n8n Instance:** A self-hosted or cloud version of [n8n](https://n8n.io/).
 - **Connected Accounts:**
